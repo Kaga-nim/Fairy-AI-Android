@@ -1,6 +1,5 @@
 *.iml
 .gradle
-/local.properties
 /.idea/caches
 /.idea/libraries
 /.idea/modules.xml
@@ -12,4 +11,23 @@
 /captures
 .externalNativeBuild
 .cxx
+
+# ===========================================
+# SECRETS & SENSITIVE FILES — JANGAN DI-COMMIT
+# ===========================================
+
+# Kunci API & konfigurasi lokal (berisi GEMINI_API_KEY, dsb.)
 local.properties
+
+# Firebase config (berisi project ID, API key, dll.)
+google-services.json
+app/google-services.json
+
+# Keystore untuk signing APK/AAB
+*.jks
+*.keystore
+keystore.properties
+
+# Environment variables
+.env
+.env.*
