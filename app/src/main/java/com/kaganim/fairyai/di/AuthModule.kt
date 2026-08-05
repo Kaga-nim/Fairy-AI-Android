@@ -1,6 +1,5 @@
 package com.kaganim.fairyai.di
 
-import com.google.firebase.auth.FirebaseAuth
 import com.kaganim.fairyai.data.repository.AuthRepositoryImpl
 import com.kaganim.fairyai.domain.repository.AuthRepository
 import com.kaganim.fairyai.domain.usecase.*
@@ -22,10 +21,6 @@ abstract class AuthModule {
     ): AuthRepository
 
     companion object {
-        @Provides
-        @Singleton
-        fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
-
         @Provides
         @Singleton
         fun provideAuthUseCases(repository: AuthRepository): AuthUseCases {

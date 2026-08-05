@@ -16,22 +16,41 @@ fun BottomBar(navController: NavHostController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    NavigationBar {
-        Screen.bottomNavItems.forEach { screen ->
-            NavigationBarItem(
-                icon = { screen.icon?.let { Icon(it, contentDescription = null) } },
-                label = { Text(screen.title) },
-                selected = currentDestination?.hierarchy?.any { it.route == screen.route } == true,
-                onClick = {
-                    navController.navigate(screen.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
+    // CRITICAL FIX: Ensure destination and route are NOT NULL before any logic
+    val currentRoute = currentDestination?.route ?: return
+
+    val bottomNavItems = Screen.bottomNavItems
+
+    // Filter out any potential nulls if initialization order issues occur
+    val showBottomBar = bottomNavItems.filterNotNull().any { it.route == currentRoute }
+
+    if (showBottomBar) {
+        NavigationBar {
+            bottomNavItems.filterNotNull().forEach { screen ->
+                val screenRoute = screen.route
+                val isSelected = currentDestination.hierarchy.any { it.route == screenRoute }
+                
+                NavigationBarItem(
+                    icon = { screen.icon?.let { Icon(it, contentDescription = null) } },
+                    label = { Text(screen.title) },
+                    selected = isSelected,
+                    onClick = {
+                        if (!isSelected) {
+                            navController.navigate(screenRoute) {
+                                popToStart(navController)
+                            }
                         }
-                        launchSingleTop = true
-                        restoreState = true
                     }
-                }
-            )
+                )
+            }
         }
     }
+}
+
+private fun androidx.navigation.NavOptionsBuilder.popToStart(navController: NavHostController) {
+    popUpTo(navController.graph.findStartDestination().id) {
+        saveState = true
+    }
+    launchSingleTop = true
+    restoreState = true
 }

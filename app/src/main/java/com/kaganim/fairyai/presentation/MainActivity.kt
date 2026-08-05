@@ -12,23 +12,33 @@ import androidx.navigation.compose.rememberNavController
 import com.kaganim.fairyai.presentation.navigation.AppNavigation
 import com.kaganim.fairyai.presentation.navigation.BottomBar
 import com.kaganim.fairyai.presentation.theme.FairyAITheme
+import com.kaganim.fairyai.domain.usecase.IsUserLoggedInUseCase
+import com.kaganim.fairyai.presentation.navigation.Screen
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var isUserLoggedInUseCase: IsUserLoggedInUseCase
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val isLoggedIn = true // Bypass login for development
+        val startDestination = if (isLoggedIn) Screen.Chat.route else Screen.Login.route
+        
         setContent {
             FairyAITheme {
-                MainScreen()
+                MainScreen(startDestination)
             }
         }
     }
 }
 
 @Composable
-fun MainScreen() {
+fun MainScreen(startDestination: String) {
     val navController = rememberNavController()
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -36,7 +46,8 @@ fun MainScreen() {
     ) { innerPadding ->
         AppNavigation(
             navController = navController,
-            paddingValues = innerPadding
+            paddingValues = innerPadding,
+            startDestination = startDestination
         )
     }
 }

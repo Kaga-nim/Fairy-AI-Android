@@ -1,14 +1,17 @@
 package com.kaganim.fairyai.data.local
 
 import androidx.room.Database
-import androidx.room.Entity
-import androidx.room.PrimaryKey
 import androidx.room.RoomDatabase
+import com.kaganim.fairyai.data.local.dao.MemoryDao
+import com.kaganim.fairyai.data.local.dao.NoteDao
+import com.kaganim.fairyai.data.local.dao.TodoDao
+import com.kaganim.fairyai.data.local.entity.MemoryEntity
+import com.kaganim.fairyai.data.local.entity.NoteEntity
+import com.kaganim.fairyai.data.local.entity.TodoEntity
 
-@Entity
-data class DummyEntity(@PrimaryKey val id: Int)
-
-@Database(entities = [DummyEntity::class], version = 1, exportSchema = false)
+@Database(entities = [NoteEntity::class, TodoEntity::class, MemoryEntity::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
-    // Add DAOs here
+    abstract val noteDao: NoteDao
+    abstract val todoDao: TodoDao
+    abstract val memoryDao: MemoryDao
 }

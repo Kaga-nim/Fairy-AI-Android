@@ -15,10 +15,14 @@ sealed class Screen(val route: String, val title: String, val icon: ImageVector?
     object Todo : Screen("todo", "Todo", Icons.Default.Checklist)
     object Profile : Screen("profile", "Profile", Icons.Default.Person)
     
+    // Sub-screens
+    object NoteDetail : Screen("note_detail", "Note Detail")
+    
     // Auth
     object Login : Screen("login", "Login", Icons.Default.Lock)
+    object Register : Screen("register", "Register", Icons.Default.Lock)
     
     companion object {
-        val bottomNavItems = listOf(Chat, Notes, Todo, Profile)
+        val bottomNavItems: List<Screen> get() = listOf(Chat, Notes, Todo, Profile)
     }
 }
