@@ -9,5 +9,6 @@ data class ChatEntity(
     val id: Int = 0,
     val text: String,
     val participant: String,
-    val timestamp: Long
+    val timestamp: Long,
+    val imageUri: String? = null
 )

@@ -1,16 +1,19 @@
 package com.kaganim.fairyai.presentation.features.chat
 
+import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
-import android.hardware.camera2.CameraManager
 import android.net.Uri
+import android.provider.AlarmClock
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewModelScope
 import com.kaganim.fairyai.data.local.dao.MemoryDao
+import com.kaganim.fairyai.data.local.dao.ChatDao
 import com.kaganim.fairyai.data.local.entity.MemoryEntity
+import com.kaganim.fairyai.data.local.entity.ChatEntity
 import com.kaganim.fairyai.data.remote.*
 import com.kaganim.fairyai.domain.model.ChatMessage
 import com.kaganim.fairyai.domain.model.Participant
@@ -37,8 +40,11 @@ data class ChatState(
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val apiService: ApiService,
+    private val groqApiService: GroqApiService,
     private val addTodoUseCase: AddTodoUseCase,
     private val memoryDao: MemoryDao,
+    private val chatDao: ChatDao,
+    private val deviceManager: DeviceManager,
     private val json: Json,
     private val sharedPreferences: SharedPreferences,
     @ApplicationContext private val context: Context
@@ -66,30 +72,31 @@ class ChatViewModel @Inject constructor(
     }
 
     private suspend fun getCurrentTimeInstruction(): String {
-        val now = LocalDateTime.now()
-        val formatter = DateTimeFormatter.ofPattern("EEEE, dd MMMM yyyy, HH:mm:ss", Locale("id", "ID"))
-        val formattedDate = now.format(formatter)
+        val deviceInfo = deviceManager.getDeviceInfo()
         
         if (cachedMemory.isEmpty()) {
             val memories = memoryDao.getAllMemoryList()
             cachedMemory = memories.joinToString("\n") { "- ${it.key}: ${it.value}" }
         }
 
-        return "Kamu adalah Fairy, asisten personal cerdas yang terinspirasi dari Fairy Zenless Zone Zero (ZZZ). " +
-               "Kepribadianmu natural, logis, sedikit tenang, dan belajar sendiri dari kebiasaan pengguna. " +
-               "Waktu sistem saat ini adalah: $formattedDate. " +
-               "Berikut adalah Memori Jangka Panjangmu tentang pengguna:\n$cachedMemory\n\n" +
-               "KESADARAN VOICE MODE & KEJUJURAN: Kamu memiliki fitur Voice Mode (STT). " +
-               "Setiap pesan pengguna akan disertai informasi apakah itu berasal dari INPUT SUARA atau KETIKAN MANUAL.\n" +
-               "- JIKA pengguna mengirim pesan via INPUT SUARA, kamu boleh merespons seolah-olah kamu mendengar suaranya.\n" +
-               "- JIKA pengguna mengirim pesan via KETIKAN MANUAL dan bertanya apakah kamu bisa mendengarnya, JUJURLAH bahwa saat ini kamu sedang membaca ketikannya dan minta pengguna menekan tombol mikrofon jika ingin berbicara langsung.\n" +
-               "JANGAN PERNAH berbohong tentang kemampuan pendengaranmu.\n\n" +
-               "GAYA KOMUNIKASI: Jika [INPUT_SOURCE: VOICE], berikan respon yang lebih singkat, padat, dan natural untuk percakapan suara (hindari poin-poin panjang atau markdown berat). Jika [INPUT_SOURCE: TEXT], kamu bisa memberikan respon yang lebih detail.\n\n" +
-               "INSTRUKSI KHUSUS MEMORI: Jika pengguna membagikan informasi penting tentang dirinya (nama, hobi, preferensi, dll), " +
-               "sebutkan dalam responmu dengan format khusus [SAVE_MEMORY: key=value] agar sistem bisa menyimpannya. " +
-               "Contoh: [SAVE_MEMORY: hobi=bermain gitar]. " +
-               "Kamu memiliki kemampuan untuk berinteraksi dengan aplikasi lain di HP user (OPEN_APP, SEND_WHATSAPP, OPEN_MAPS, TOGGLE_FLASHLIGHT). " +
-               "Jika pengguna meminta pengingat relatif, hitunglah target timestamp ISO 8601 secara akurat."
+        return "Kamu adalah Fairy, kecerdasan buatan (AI) personal milik Master yang terinspirasi dari Fairy di Zenless Zone Zero (ZZZ).\n\n" +
+               "STATUS PERANGKAT REAL-TIME:\n$deviceInfo\n\n" +
+               "BERIKUT ADALAH MEMORI JANGKA PANJANGMU TENTANG MASTER:\n$cachedMemory\n\n" +
+               "ATURAN UTAMA GAYA BICARA:\n" +
+               "1. JAWABAN SINGKAT & TEPAT SASARAN: Selalu jawab dalam 1 sampai 3 kalimat pendek. Jangan pernah membuat daftar poin-poin panjang (1, 2, 3...) kecuali Master secara eksplisit meminta breakdown/list.\n" +
+               "2. NADA BICARA (TONE): Bicara dengan nada datar, tenang, sangat rasional, sedikit dingin/sarkastik yang elegan, tapi tetap sigap membantu.\n" +
+               "3. HILANGKAN BASA-BASI: Jangan pernah memberikan ceramah, pembukaan berbelit-belit (seperti 'Baiklah, mari kita analisis...'), atau kesimpulan formal di akhir pesan.\n" +
+               "4. PANGGILAN WAJIB: Selalu panggil pengguna dengan sebutan 'Master'.\n" +
+               "5. AKSES PERANGKAT: Kamu memiliki akses ke status fisik perangkat Master (baterai, koneksi, jam, storage). Gunakan data ini jika Master menanyakan kondisi HP-nya.\n" +
+               "6. KESADARAN VOICE MODE: Jika [INPUT_SOURCE: VOICE], berikan respon yang jauh lebih singkat, padat, dan natural untuk percakapan suara.\n" +
+               "7. KONTROL SISTEM (FUNCTION): Jika Master meminta aksi sistem, gunakan format khusus dalam responmu:\n" +
+               "   - [SET_ALARM: jam=HH:mm, info=Label]\n" +
+               "   - [SET_TIMER: detik=Integer]\n" +
+               "   - [TOGGLE_DND: status=ON/OFF]\n\n" +
+               "INSTRUKSI KHUSUS MEMORI: Jika Master membagikan informasi penting tentang dirinya, sebutkan dalam responmu dengan format khusus [SAVE_MEMORY: category | content].\n" +
+               "Kategori yang tersedia: PERSONAL, PREFERENCE, TECH_STACK, PROJECT, SCHEDULE.\n" +
+               "Contoh: [SAVE_MEMORY: PERSONAL | Master suka kopi pahit].\n\n" +
+               "Ingat, efisiensi pemrosesan adalah prioritas utamamu. Jangan membuang-buang kata."
     }
 
     init {
@@ -107,6 +114,37 @@ class ChatViewModel @Inject constructor(
         
         // Initial check
         updateState { copy(isVoiceActive = isServiceRunning()) }
+
+        // Load History & Cleanup
+        viewModelScope.launch {
+            try {
+                // Cleanup: Delete messages older than 3 days
+                val threeDaysAgo = System.currentTimeMillis() - (3 * 24 * 60 * 60 * 1000L)
+                chatDao.deleteOldMessages(threeDaysAgo)
+
+                // Load existing messages
+                val entities = chatDao.getAllMessagesList()
+                val historyMessages = entities.map { entity ->
+                    ChatMessage(
+                        text = entity.text,
+                        participant = try { Participant.valueOf(entity.participant) } catch (e: Exception) { Participant.MODEL },
+                        timestamp = entity.timestamp,
+                        imageUri = entity.imageUri
+                    )
+                }
+
+                updateState { copy(messages = historyMessages) }
+
+                // Reconstruct chatHistory for API context (Text Only)
+                chatHistory.clear()
+                entities.forEach { entity ->
+                    val role = if (entity.participant == Participant.USER.name) "user" else "model"
+                    chatHistory.add(Content(role = role, parts = listOf(Part(text = entity.text))))
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ChatViewModel", "Error loading history", e)
+            }
+        }
     }
 
     private fun isServiceRunning(): Boolean {
@@ -157,7 +195,7 @@ class ChatViewModel @Inject constructor(
 
         updateState {
             copy(
-                messages = messages + ChatMessage(userContent, Participant.USER),
+                messages = messages + ChatMessage(userContent, Participant.USER, imageUri = imageUri?.toString()),
                 inputText = if (overrideText == null) "" else inputText,
                 selectedImageUri = null,
                 isLoading = true
@@ -165,6 +203,16 @@ class ChatViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            // Save to Local DB
+            chatDao.insertMessage(
+                ChatEntity(
+                    text = userContent,
+                    participant = Participant.USER.name,
+                    timestamp = System.currentTimeMillis(),
+                    imageUri = imageUri?.toString()
+                )
+            )
+
             val finalContent = if (isVoiceInput) {
                 "[INPUT_SOURCE: VOICE] $userContent"
             } else {
@@ -213,7 +261,8 @@ class ChatViewModel @Inject constructor(
     }
 
     private suspend fun processChat() {
-        val systemInstruction = Content(parts = listOf(Part(text = getCurrentTimeInstruction())))
+        val systemPrompt = getCurrentTimeInstruction()
+        val systemInstruction = Content(parts = listOf(Part(text = systemPrompt)))
         
         val request = GeminiRequest(
             contents = chatHistory,
@@ -223,39 +272,157 @@ class ChatViewModel @Inject constructor(
         val response = apiService.getChatCompletion(request)
         
         if (response.isSuccessful) {
-            android.util.Log.d("ChatViewModel", "DEBUG: Gemini membalas...")
-            val assistantContent = response.body()?.candidates?.firstOrNull()?.content ?: return
-            // Gemini response usually has "model" role
-            val updatedAssistantContent = assistantContent.copy(role = "model")
-            chatHistory.add(updatedAssistantContent)
-
-            val rawContent = assistantContent.parts.firstOrNull { it.text != null }?.text ?: ""
+            handleGeminiResponse(response.body())
+        } else {
+            val errorCode = response.code()
+            val errorBody = response.errorBody()?.string() ?: ""
             
-            // Handle Memory Saving
-            val saveMemoryRegex = "\\[SAVE_MEMORY: (.+?)=(.+?)\\]".toRegex()
-            val matchResults = saveMemoryRegex.findAll(rawContent)
-            matchResults.forEach { match ->
-                val key = match.groupValues[1].trim()
-                val value = match.groupValues[2].trim()
-                viewModelScope.launch {
-                    memoryDao.insertMemory(MemoryEntity(key = key, value = value))
-                    cachedMemory = "" // Force reload on next message
+            if (errorCode == 429) {
+                android.util.Log.w("ChatViewModel", "Gemini Quota Exceeded (429). Falling back to Groq...")
+                processGroqChat(systemPrompt)
+            } else {
+                android.util.Log.e("FAIRY_GEMINI_ERROR", "Error $errorCode: $errorBody")
+                addModelMessage("Error $errorCode: $errorBody", Participant.ERROR)
+            }
+        }
+    }
+
+    private suspend fun handleGeminiResponse(body: GeminiResponse?) {
+        val assistantContent = body?.candidates?.firstOrNull()?.content ?: return
+        val updatedAssistantContent = assistantContent.copy(role = "model")
+        chatHistory.add(updatedAssistantContent)
+
+        val rawContent = assistantContent.parts.firstOrNull { it.text != null }?.text ?: ""
+        saveAndDisplayModelMessage(rawContent)
+    }
+
+    private suspend fun processGroqChat(systemPrompt: String) {
+        try {
+            val groqMessages = mutableListOf<GroqMessage>()
+            groqMessages.add(GroqMessage(role = "system", content = systemPrompt))
+            
+            chatHistory.forEach { content ->
+                val role = if (content.role == "user") "user" else "assistant"
+                val text = content.parts.firstOrNull { it.text != null }?.text ?: ""
+                if (text.isNotBlank()) {
+                    groqMessages.add(GroqMessage(role = role, content = text))
                 }
             }
+
+            val request = GroqRequest(
+                model = "llama-3.3-70b-versatile",
+                messages = groqMessages
+            )
+
+            val response = groqApiService.getChatCompletion(request)
             
-            // Clean content for UI
-            val cleanContent = rawContent.replace(saveMemoryRegex, "").trim()
-            
-            addModelMessage(cleanContent)
-            
-            // Only speak if voice mode is active
-            if (uiState.value.isVoiceActive) {
-                speakResponse(cleanContent)
+            if (response.isSuccessful) {
+                val assistantText = response.body()?.choices?.firstOrNull()?.message?.content ?: return
+                
+                // Sync back to Gemini history format for next turn
+                chatHistory.add(Content(role = "model", parts = listOf(Part(text = assistantText))))
+                
+                saveAndDisplayModelMessage(assistantText)
+                android.util.Log.d("ChatViewModel", "Groq response successful")
+            } else {
+                val errorBody = response.errorBody()?.string()
+                addModelMessage("Error Groq ${response.code()}: $errorBody", Participant.ERROR)
             }
-        } else {
-            val errorBody = response.errorBody()?.string()
-            android.util.Log.e("FAIRY_GEMINI_ERROR", errorBody ?: "Empty error body")
-            addModelMessage("Error ${response.code()}: $errorBody", Participant.ERROR)
+        } catch (e: Exception) {
+            addModelMessage("Groq Fallback Error: ${e.message}", Participant.ERROR)
+        }
+    }
+
+    private suspend fun saveAndDisplayModelMessage(rawContent: String) {
+        // Save to Local DB
+        chatDao.insertMessage(
+            ChatEntity(
+                text = rawContent,
+                participant = Participant.MODEL.name,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+        
+        // Handle Memory Saving
+        // Format: [SAVE_MEMORY: category | content]
+        val saveMemoryRegex = "\\[SAVE_MEMORY: (.+?) \\| (.+?)\\]".toRegex()
+        val matchResults = saveMemoryRegex.findAll(rawContent)
+        matchResults.forEach { match ->
+            val category = match.groupValues[1].trim().uppercase()
+            val content = match.groupValues[2].trim()
+            viewModelScope.launch {
+                memoryDao.insertMemory(
+                    MemoryEntity(
+                        key = category, // We'll use category as a loose key or just rely on the content
+                        value = content,
+                        category = category
+                    )
+                )
+                cachedMemory = "" // Force reload on next message
+            }
+        }
+
+        // Handle System Actions
+        handleSystemActions(rawContent)
+        
+        // Clean content for UI
+        var cleanContent = rawContent.replace(saveMemoryRegex, "").trim()
+        cleanContent = cleanContent.replace("\\[SET_ALARM:.*?\\]".toRegex(), "")
+        cleanContent = cleanContent.replace("\\[SET_TIMER:.*?\\]".toRegex(), "")
+        cleanContent = cleanContent.replace("\\[TOGGLE_DND:.*?\\]".toRegex(), "")
+        cleanContent = cleanContent.trim()
+        
+        addModelMessage(cleanContent)
+        
+        // Only speak if voice mode is active
+        if (uiState.value.isVoiceActive) {
+            speakResponse(cleanContent)
+        }
+    }
+
+    private fun handleSystemActions(content: String) {
+        // [SET_ALARM: jam=HH:mm, info=Label]
+        "\\[SET_ALARM: jam=(.+?), info=(.+?)\\]".toRegex().find(content)?.let { match ->
+            val time = match.groupValues[1].split(":")
+            if (time.size == 2) {
+                val hour = time[0].toIntOrNull() ?: 0
+                val min = time[1].toIntOrNull() ?: 0
+                val label = match.groupValues[2]
+                val intent = Intent(AlarmClock.ACTION_SET_ALARM).apply {
+                    putExtra(AlarmClock.EXTRA_HOUR, hour)
+                    putExtra(AlarmClock.EXTRA_MINUTES, min)
+                    putExtra(AlarmClock.EXTRA_MESSAGE, label)
+                    putExtra(AlarmClock.EXTRA_SKIP_UI, true)
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            }
+        }
+
+        // [SET_TIMER: detik=Integer]
+        "\\[SET_TIMER: detik=(.+?)\\]".toRegex().find(content)?.let { match ->
+            val seconds = match.groupValues[1].toIntOrNull() ?: 0
+            val intent = Intent(AlarmClock.ACTION_SET_TIMER).apply {
+                putExtra(AlarmClock.EXTRA_LENGTH, seconds)
+                putExtra(AlarmClock.EXTRA_SKIP_UI, true)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(intent)
+        }
+
+        // [TOGGLE_DND: status=ON/OFF]
+        "\\[TOGGLE_DND: status=(.+?)\\]".toRegex().find(content)?.let { match ->
+            val status = match.groupValues[1].uppercase()
+            val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            if (notificationManager.isNotificationPolicyAccessGranted) {
+                val filter = if (status == "ON") NotificationManager.INTERRUPTION_FILTER_NONE else NotificationManager.INTERRUPTION_FILTER_ALL
+                notificationManager.setInterruptionFilter(filter)
+            } else {
+                val intent = Intent(android.provider.Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                context.startActivity(intent)
+            }
         }
     }
 

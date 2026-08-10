@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.kaganim.fairyai.data.local.AppDatabase
 import com.kaganim.fairyai.data.remote.ApiService
+import com.kaganim.fairyai.data.remote.GroqApiService
 import com.kaganim.fairyai.domain.repository.NoteRepository
 import com.kaganim.fairyai.domain.usecase.*
 import dagger.Module
@@ -33,8 +34,12 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    @javax.inject.Named("GeminiClient")
+    fun provideGeminiOkHttpClient(): OkHttpClient {
         return OkHttpClient.Builder()
+            .connectTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
             .addInterceptor { chain ->
                 val request = chain.request().newBuilder()
                     .addHeader("X-goog-api-key", com.kaganim.fairyai.BuildConfig.GEMINI_API_KEY)
@@ -50,7 +55,28 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideApiService(okHttpClient: OkHttpClient, json: Json): ApiService {
+    @javax.inject.Named("GroqClient")
+    fun provideGroqOkHttpClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            .connectTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .writeTimeout(60, java.util.concurrent.TimeUnit.SECONDS)
+            .addInterceptor { chain ->
+                val request = chain.request().newBuilder()
+                    .addHeader("Authorization", "Bearer ${com.kaganim.fairyai.BuildConfig.GROQ_API_KEY}")
+                    .addHeader("Content-Type", "application/json")
+                    .build()
+                chain.proceed(request)
+            }
+            .addInterceptor(HttpLoggingInterceptor().apply {
+                level = HttpLoggingInterceptor.Level.BODY
+            })
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideApiService(@javax.inject.Named("GeminiClient") okHttpClient: OkHttpClient, json: Json): ApiService {
         val contentType = "application/json".toMediaType()
         return Retrofit.Builder()
             .baseUrl("https://generativelanguage.googleapis.com/v1beta/")
@@ -58,6 +84,18 @@ object AppModule {
             .addConverterFactory(json.asConverterFactory(contentType))
             .build()
             .create(ApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideGroqApiService(@javax.inject.Named("GroqClient") okHttpClient: OkHttpClient, json: Json): GroqApiService {
+        val contentType = "application/json".toMediaType()
+        return Retrofit.Builder()
+            .baseUrl("https://api.groq.com/openai/v1/")
+            .client(okHttpClient)
+            .addConverterFactory(json.asConverterFactory(contentType))
+            .build()
+            .create(GroqApiService::class.java)
     }
 
     @Provides
@@ -73,7 +111,8 @@ object AppModule {
             context,
             AppDatabase::class.java,
             "fairy_ai_db"
-        ).fallbackToDestructiveMigration()
+        )
+        .addMigrations(*AppDatabase.MIGRATIONS)
         .build()
     }
 
@@ -88,6 +127,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideMemoryDao(db: AppDatabase) = db.memoryDao
+
+    @Provides
+    @Singleton
+    fun provideChatDao(db: AppDatabase) = db.chatDao
 
     @Provides
     @Singleton

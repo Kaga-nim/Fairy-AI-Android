@@ -18,6 +18,9 @@ interface MemoryDao {
     @Query("DELETE FROM fairy_memory WHERE `key` = :key")
     suspend fun deleteMemoryByKey(key: String)
 
+    @Delete
+    suspend fun deleteMemory(memory: MemoryEntity)
+
     @Query("DELETE FROM fairy_memory")
     suspend fun clearMemory()
 }

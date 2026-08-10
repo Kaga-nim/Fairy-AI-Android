@@ -26,7 +26,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val isLoggedIn = true // Bypass login for development
+        val isLoggedIn = isUserLoggedInUseCase()
         val startDestination = if (isLoggedIn) Screen.Chat.route else Screen.Login.route
         
         setContent {

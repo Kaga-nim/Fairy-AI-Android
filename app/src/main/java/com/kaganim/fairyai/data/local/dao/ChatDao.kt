@@ -11,6 +11,9 @@ interface ChatDao {
     @Query("SELECT * FROM chat_messages ORDER BY timestamp ASC")
     fun getAllMessages(): Flow<List<ChatEntity>>
 
+    @Query("SELECT * FROM chat_messages ORDER BY timestamp ASC")
+    suspend fun getAllMessagesList(): List<ChatEntity>
+
     @Insert
     suspend fun insertMessage(message: ChatEntity)
 

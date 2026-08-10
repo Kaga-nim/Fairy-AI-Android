@@ -45,6 +45,11 @@ import android.provider.Settings as AndroidSettings
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.draw.clip
 import coil.compose.AsyncImage
@@ -232,6 +237,39 @@ fun ThinkingIndicator() {
     }
 }
 
+@Composable
+fun parseMarkdown(text: String): AnnotatedString {
+    return buildAnnotatedString {
+        var currentIdx = 0
+        val boldRegex = Regex("""\*\*(.*?)\*\*""")
+        val italicRegex = Regex("""\*(.*?)\*""")
+        
+        // Simple sequential matching for bold and italic
+        // Note: This is a basic implementation. For nested or complex markdown, a full parser is better.
+        val matches = (boldRegex.findAll(text).map { it to "bold" } + 
+                       italicRegex.findAll(text).filter { !it.value.startsWith("**") }.map { it to "italic" })
+                      .sortedBy { it.first.range.first }
+
+        matches.forEach { (match, type) ->
+            if (match.range.first > currentIdx) {
+                append(text.substring(currentIdx, match.range.first))
+            }
+            
+            withStyle(style = SpanStyle(
+                fontWeight = if (type == "bold") FontWeight.Bold else FontWeight.Normal,
+                fontStyle = if (type == "italic") FontStyle.Italic else FontStyle.Normal
+            )) {
+                append(match.groupValues[1])
+            }
+            currentIdx = match.range.last + 1
+        }
+        
+        if (currentIdx < text.length) {
+            append(text.substring(currentIdx))
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun ChatBubble(message: ChatMessage, onRetry: () -> Unit) {
@@ -274,8 +312,20 @@ fun ChatBubble(message: ChatMessage, onRetry: () -> Unit) {
             border = if (isError) androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF6666).copy(alpha = 0.5f)) else null
         ) {
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                if (message.imageUri != null) {
+                    AsyncImage(
+                        model = message.imageUri,
+                        contentDescription = "Sent Image",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 250.dp)
+                            .padding(bottom = 8.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                    )
+                }
+
                 Text(
-                    text = message.text,
+                    text = parseMarkdown(message.text),
                     fontSize = 15.sp,
                     lineHeight = 20.sp
                 )
@@ -285,7 +335,7 @@ fun ChatBubble(message: ChatMessage, onRetry: () -> Unit) {
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (!isUser && !isError) {
+                    if (!isError) {
                         IconButton(
                             onClick = copyText,
                             modifier = Modifier.size(24.dp)
@@ -294,7 +344,7 @@ fun ChatBubble(message: ChatMessage, onRetry: () -> Unit) {
                                 imageVector = Icons.Default.ContentCopy,
                                 contentDescription = "Copy Message",
                                 modifier = Modifier.size(16.dp),
-                                tint = Color(0xFF00FFCC).copy(alpha = 0.6f)
+                                tint = (if (isUser) Color.White else Color(0xFF00FFCC)).copy(alpha = 0.6f)
                             )
                         }
                     }

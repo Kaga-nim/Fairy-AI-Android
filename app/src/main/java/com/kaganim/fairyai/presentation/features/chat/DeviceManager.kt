@@ -56,6 +56,6 @@ class DeviceManager @Inject constructor(
         val stat = StatFs(Environment.getDataDirectory().path)
         val bytesAvailable = stat.blockSizeLong * stat.availableBlocksLong
         val gigabytes = bytesAvailable / (1024 * 1024 * 1024).toDouble()
-        return String.format("%.2f GB", gigabytes)
+        return String.format(Locale.getDefault(), "%.2f GB", gigabytes)
     }
 }

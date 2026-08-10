@@ -21,8 +21,15 @@ fun BottomBar(navController: NavHostController) {
 
     val bottomNavItems = Screen.bottomNavItems
 
-    // Filter out any potential nulls if initialization order issues occur
-    val showBottomBar = bottomNavItems.filterNotNull().any { it.route == currentRoute }
+    // Show bottom bar on main screens and auth screens, but NOT on detail screens
+    val showBottomBar = currentRoute in listOf(
+        Screen.Chat.route,
+        Screen.Notes.route,
+        Screen.Todo.route,
+        Screen.Profile.route,
+        Screen.Login.route,
+        Screen.Register.route
+    )
 
     if (showBottomBar) {
         NavigationBar {
