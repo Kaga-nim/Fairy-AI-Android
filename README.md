@@ -10,6 +10,23 @@ Fairy acts as a personal assistant that can hold multi-turn conversations, read 
 
 ---
 
+## APK Download
+
+A pre-built Android package is available in this repository for testing and demonstration purposes:
+
+- 📦 **[Download Fairy APK](releases/Fairy-debug.apk)**
+
+> **Note:** The available APK is a **debug build** intended for testing and personal evaluation, not a production release.
+
+### API Availability & Trying Fairy
+
+The AI cloud services (Gemini & Groq) integrated with Fairy are currently offline/inactive in this pre-built APK. As a result, the publicly available APK cannot perform real-time AI conversations out-of-the-box.
+
+- **Requesting an Active Build:** If you would like to test Fairy with an active API configuration, please reach out to the project owner. A custom APK build configured with the necessary service access can be provided upon request.
+- **Security:** For security and privacy reasons, live API credentials and Firebase secret keys are never included in this public repository.
+
+---
+
 ## Features
 
 | Feature | Status |
@@ -98,6 +115,8 @@ Fairy AI/
 │   │   └── res/
 ├── gradle/
 │   └── libs.versions.toml          # Version catalog
+├── releases/
+│   └── Fairy-debug.apk             # Pre-built debug APK for testing
 ├── build.gradle.kts
 └── settings.gradle.kts
 ```
